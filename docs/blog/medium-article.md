@@ -1,12 +1,12 @@
-# How Fifteen Fans Bought Five Concert Tickets — And How Distributed Locks Stop the Chaos
+# Redis Distributed Locks Beyond `SET NX PX`: Lua Scripts, Watchdogs, and Redlock in Python
 
-## From an oversold SQLite checkout to atomic Lua scripts, Watchdog renewals, and a 5-node Redlock quorum
+## Stopping concert ticket overselling with Docker chaos tests and a 5-node Redis quorum
 
 Five front-row concert seats drop at noon. Fifteen fans hit **Buy Now** at the exact same millisecond.
 
 In an unprotected web app, every request checks the database, sees five seats left, pauses briefly to charge a card, and subtracts one. Because all fifteen buyers read `5` before anyone writes `4`, half a second later fifteen confirmation emails go out—and inventory hits `-10`.
 
-Our repository reproduces this in `tests/test_race_condition.py`. Fifteen threads inside `TicketInventoryService` start behind a barrier for five seats with a `100ms` delay, and all fifteen book a seat.
+The [redis-distributed-lock](https://github.com/pdhingra/redis-distributed-lock) GitHub repository reproduces this in `tests/test_race_condition.py`. Fifteen threads inside `TicketInventoryService` start behind a barrier for five seats with a `100ms` delay, and all fifteen book a seat.
 
 Engineers call this a **race condition**: two clerks glancing at the same chalkboard tally, both seeing "5 left," and both selling the seat before either updates the board.
 
@@ -106,7 +106,7 @@ acquire() ---> parallel SET NX PX to redis-1..5 (50ms timeout)
 
 If fewer than three nodes reply, Redlock immediately runs `RELEASE_SCRIPT` across all five masters to wipe partial locks, then retries with random jitter.
 
-Our `tests/test_redlock_quorum.py` chaos suite tests this with `docker pause` (always unpausing in `finally:` and sweeping keys in `tests/conftest.py`):
+The `tests/test_redlock_quorum.py` chaos suite tests this with `docker pause` (always unpausing in `finally:` and sweeping keys in `tests/conftest.py`):
 
 - **Pause 2 of 5 (`redis-4`, `redis-5`):** A `3/5` quorum holds, booking a seat cleanly in SQLite.
 - **Pause 3 of 5 (`redis-3`, `redis-4`, `redis-5`):** Dropping to `2/5` causes `acquire()` to return `False`, raises `LockAcquisitionError`, and leaves **zero dangling `lock:*` keys** on `redis-1` or `redis-2`.
@@ -119,7 +119,7 @@ One edge case remains beyond any lease lock's reach: extreme process pauses.
 
 Suppose Worker A sees `lock.is_valid() == True` and hits a long garbage-collection pause or VM freeze right before SQLite writes. Meanwhile its lock expires, Worker B buys the last seat, and Worker A wakes up and commits stale data.
 
-Fixing that requires a **fencing token**—a rising number, like a numbered deli-counter ticket, enforced by the database so it rejects ticket `#41` after serving `#42`. Our demo uses pre-commit `is_valid()` checks rather than storage-side fencing tokens.
+Fixing that requires a **fencing token**—a rising number, like a numbered deli-counter ticket, enforced by the database so it rejects ticket `#41` after serving `#42`. This reference lab uses pre-commit `is_valid()` checks rather than storage-side fencing tokens.
 
 Likewise, `docker-compose.yml` starts Redis with `--appendonly yes` (`appendfsync everysec`), meaning up to one second of locks could vanish during an instant crash. Production Redlock deployments wait `max_ttl` before restarting crashed masters so stale locks expire safely first.
 
@@ -127,12 +127,14 @@ Likewise, `docker-compose.yml` starts Redis with `--appendonly yes` (`appendfsyn
 
 ### Walkthrough: Run the Chaos Lab Yourself
 
-Spin up all five masters and run the verified chaos suite locally:
+Clone the full codebase from GitHub ([github.com/pdhingra/redis-distributed-lock](https://github.com/pdhingra/redis-distributed-lock)), spin up all five masters, and run the verified chaos suite locally:
 
 ```bash
+git clone https://github.com/pdhingra/redis-distributed-lock.git
+cd redis-distributed-lock
 docker compose up -d   # 5 independent redis:7-alpine masters (6379-6383)
 uv sync                # Install redis-py >= 5.2.0 and pytest
-uv run pytest -v       # Run 4 suites (9 tests) in ~10s
+uv run pytest -v       # Run 4 suites (9 tests) in ~10s and generate reports/
 ```
 
 Repo map:

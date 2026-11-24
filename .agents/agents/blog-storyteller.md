@@ -32,6 +32,6 @@ Before writing, inspect `SPEC.md`, `README.md`, `src/redis_lock_demo/ticket_inve
 ## Deliverables
 Generate two ready-to-publish Markdown files under `docs/blog/`:
 1. `docs/blog/medium-article.md`:
-   - Title + subtitle, 1,100–1,500 words, clean diagrams/short annotated snippets (<12 lines), and a closing GitHub repo walkthrough section.
+   - Title + subtitle, 1,100–1,500 words, clean diagrams/short annotated snippets (<12 lines), direct links to the GitHub repository URL (both in the intro and the closing walkthrough), and a closing GitHub repo walkthrough section.
 2. `docs/blog/linkedin-post.md`:
    - 180–250 words, strong 2-line opening hook, crisp spacing, inline repository-showcase framing (`This GitHub repository (<GITHUB_REPO_URL>) showcases...`) rather than `"I built..."`, 3 key takeaways from the chaos tests, a brief production caveat, and an engaging closing question for comments.
