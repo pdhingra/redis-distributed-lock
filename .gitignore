@@ -1,0 +1,24 @@
+# Python & virtual environments
+.venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+
+# Testing & tooling caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local SQLite database artifacts
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+
+# macOS / OS files
+.DS_Store
